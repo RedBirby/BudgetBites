@@ -1,0 +1,5 @@
+{
+  "PLACES_PROXY_URL": "https://api.example.com/v1/stores/nearby",
+  "TAX_PROXY_URL": "https://api.example.com/v1/tax/estimate",
+  "USE_LIVE_SERVICES": "true"
+}

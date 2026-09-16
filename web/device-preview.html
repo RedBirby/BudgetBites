@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BudgetBite Mobile Preview</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; margin: 0; }
+      body {
+        display: grid;
+        place-items: center;
+        padding: 28px;
+        background: #eef3ef;
+        color: #152019;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .preview {
+        display: grid;
+        justify-items: center;
+        gap: 14px;
+        width: 100%;
+      }
+      .label {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 750;
+        letter-spacing: .04em;
+        color: #4f6256;
+      }
+      .device {
+        position: relative;
+        width: min(430px, calc(100vw - 36px));
+        height: min(900px, calc(100vh - 92px));
+        min-height: 620px;
+        overflow: hidden;
+        border: 11px solid #172019;
+        border-radius: 52px;
+        background: #fff;
+        box-shadow: 0 28px 70px rgba(21, 32, 25, .24);
+      }
+      .camera {
+        position: absolute;
+        z-index: 2;
+        top: 9px;
+        left: 50%;
+        width: 104px;
+        height: 27px;
+        border-radius: 18px;
+        background: #172019;
+        transform: translateX(-50%);
+        pointer-events: none;
+      }
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="preview">
+      <p class="label">BUDGETBITE · MOBILE PREVIEW</p>
+      <section class="device" aria-label="Phone-sized BudgetBite preview">
+        <div class="camera" aria-hidden="true"></div>
+        <!-- Geolocation is blocked inside an iframe unless the feature policy
+             explicitly grants it. This keeps the phone preview functional
+             while still prompting the user for browser permission. -->
+        <iframe
+          src="./"
+          title="BudgetBite Flutter application"
+          allow="geolocation"
+        ></iframe>
+      </section>
+    </main>
+  </body>
+</html>
