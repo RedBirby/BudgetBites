@@ -160,20 +160,22 @@ class AccountScreen extends ConsumerWidget {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => context.go('/plan'),
                   ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.bookmark_outline,
-                      color: AppColors.green,
+                  if (!session.isGuest) ...[
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.bookmark_outline,
+                        color: AppColors.green,
+                      ),
+                      title: const Text(
+                        'Saved recipes',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text('${state.savedRecipeIds.length} saved'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.go('/saved'),
                     ),
-                    title: const Text(
-                      'Saved recipes',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    subtitle: Text('${state.savedRecipeIds.length} saved'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.go('/saved'),
-                  ),
+                  ],
                 ],
               ),
             ),

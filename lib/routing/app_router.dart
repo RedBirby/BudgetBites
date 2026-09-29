@@ -27,11 +27,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/discover',
     refreshListenable: refresh,
     redirect: (context, state) {
-      final signedIn = ref.read(appControllerProvider).session != null;
+      final session = ref.read(appControllerProvider).session;
+      final signedIn = session != null;
       final onAuthPage =
           state.matchedLocation == '/login' ||
           state.matchedLocation == '/create-account';
       if (!signedIn) return onAuthPage ? null : '/login';
+      if (session.isGuest && state.matchedLocation == '/saved') {
+        return '/discover';
+      }
       if (onAuthPage) return '/discover';
       return null;
     },

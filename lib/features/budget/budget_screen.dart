@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
-import '../../domain/models/budget_item.dart';
 import '../../shared/widgets/common_widgets.dart';
 import '../../state/app_controller.dart';
 import '../plan/location_gate.dart';
+import 'budget_item_row.dart';
+import 'total_line.dart';
 
 class BudgetScreen extends ConsumerWidget {
   const BudgetScreen({super.key});
@@ -87,7 +88,7 @@ class BudgetScreen extends ConsumerWidget {
                         )
                       else
                         for (final item in state.budgetItems)
-                          _BudgetItemRow(item: item),
+                          BudgetItemRow(item: item),
                       const Divider(),
                       Wrap(
                         spacing: 8,
@@ -112,17 +113,17 @@ class BudgetScreen extends ConsumerWidget {
                         ],
                       ),
                       const Divider(height: 30),
-                      _TotalLine(
+                      TotalLine(
                         label: 'Grocery subtotal',
                         value: money.format(state.subtotal),
                       ),
-                      _TotalLine(
+                      TotalLine(
                         label:
                             'Estimated local tax (${state.taxRate.toStringAsFixed(2)}%)',
                         value: money.format(state.tax),
                       ),
                       const Divider(),
-                      _TotalLine(
+                      TotalLine(
                         label: 'Estimated checkout total',
                         value: money.format(state.checkoutTotal),
                         emphasized: true,
@@ -186,6 +187,28 @@ class BudgetScreen extends ConsumerWidget {
                           double.tryParse(value) ?? 0,
                         ),
                       ),
+                      if (state.loadingTax) ...[
+                        const SizedBox(height: 8),
+                        const LinearProgressIndicator(),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Updating the estimate for this store…',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                      if (state.taxError != null && !state.loadingTax) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          state.taxError!,
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       if (state.taxIsManual)
                         OutlinedButton.icon(
@@ -250,112 +273,4 @@ class BudgetScreen extends ConsumerWidget {
       ),
     );
   }
-}
-
-class _BudgetItemRow extends ConsumerWidget {
-  const _BudgetItemRow({required this.item});
-  final BudgetItem item;
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final controller = ref.read(appControllerProvider.notifier);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 540;
-        final itemField = TextFormField(
-          initialValue: item.name,
-          decoration: const InputDecoration(isDense: true, labelText: 'Item'),
-          onChanged: (value) =>
-              controller.updateBudgetItem(item.copyWith(name: value)),
-        );
-        final priceField = TextFormField(
-          initialValue: item.price?.toStringAsFixed(2),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            isDense: true,
-            labelText: 'Store price',
-            prefixText: '\$ ',
-          ),
-          onChanged: (value) => controller.updateBudgetItem(
-            item.copyWith(price: double.tryParse(value)),
-          ),
-        );
-        final removeButton = IconButton(
-          tooltip: 'Remove item',
-          onPressed: () => controller.removeBudgetItem(item.id),
-          icon: const Icon(Icons.close, color: AppColors.danger),
-        );
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: compact
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: item.checked,
-                          onChanged: (value) => controller.updateBudgetItem(
-                            item.copyWith(checked: value),
-                          ),
-                        ),
-                        Expanded(child: itemField),
-                        removeButton,
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    priceField,
-                  ],
-                )
-              : Row(
-                  children: [
-                    Checkbox(
-                      value: item.checked,
-                      onChanged: (value) => controller.updateBudgetItem(
-                        item.copyWith(checked: value),
-                      ),
-                    ),
-                    Expanded(flex: 3, child: itemField),
-                    const SizedBox(width: 8),
-                    SizedBox(width: 125, child: priceField),
-                    removeButton,
-                  ],
-                ),
-        );
-      },
-    );
-  }
-}
-
-class _TotalLine extends StatelessWidget {
-  const _TotalLine({
-    required this.label,
-    required this.value,
-    this.emphasized = false,
-  });
-  final String label;
-  final String value;
-  final bool emphasized;
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 5),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: emphasized ? AppColors.ink : AppColors.muted,
-            ),
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: emphasized ? 22 : 15,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    ),
-  );
 }

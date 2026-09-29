@@ -17,9 +17,39 @@ class AppShell extends ConsumerWidget {
     final showUsername = screenWidth >= 430;
     final tinyHeader = screenWidth < 360;
     final username = state.session?.username ?? 'Guest';
+    final isGuest = state.session?.isGuest ?? false;
     final locationLabel =
         state.zipCode ??
         (state.userLocation == null ? 'Set location' : 'Near me');
+    final destinations = <NavigationDestination>[
+      const NavigationDestination(
+        icon: Icon(Icons.explore_outlined),
+        selectedIcon: Icon(Icons.explore),
+        label: 'Discover',
+      ),
+      const NavigationDestination(
+        icon: Icon(Icons.shopping_basket_outlined),
+        selectedIcon: Icon(Icons.shopping_basket),
+        label: 'My plan',
+      ),
+      const NavigationDestination(
+        icon: Icon(Icons.receipt_long_outlined),
+        selectedIcon: Icon(Icons.receipt_long),
+        label: 'Budget',
+      ),
+    ];
+    if (!isGuest) {
+      destinations.add(
+        const NavigationDestination(
+          icon: Icon(Icons.bookmark_border),
+          selectedIcon: Icon(Icons.bookmark),
+          label: 'Saved',
+        ),
+      );
+    }
+    final selectedIndex = navigationShell.currentIndex
+        .clamp(0, destinations.length - 1)
+        .toInt();
     return Scaffold(
       appBar: AppBar(
         titleSpacing: screenWidth < 430 ? 8 : null,
@@ -88,33 +118,12 @@ class AppShell extends ConsumerWidget {
       ),
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
+        selectedIndex: selectedIndex,
         onDestinationSelected: (index) => navigationShell.goBranch(
           index,
           initialLocation: index == navigationShell.currentIndex,
         ),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.explore_outlined),
-            selectedIcon: Icon(Icons.explore),
-            label: 'Discover',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.shopping_basket_outlined),
-            selectedIcon: Icon(Icons.shopping_basket),
-            label: 'My plan',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'Budget',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bookmark_border),
-            selectedIcon: Icon(Icons.bookmark),
-            label: 'Saved',
-          ),
-        ],
+        destinations: destinations,
       ),
     );
   }

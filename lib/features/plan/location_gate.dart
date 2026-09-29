@@ -16,7 +16,6 @@ class LocationGate extends ConsumerStatefulWidget {
 
 class _LocationGateState extends ConsumerState<LocationGate> {
   final _zip = TextEditingController();
-  String? _error;
   bool _confirmed = false;
   @override
   void dispose() {
@@ -26,7 +25,6 @@ class _LocationGateState extends ConsumerState<LocationGate> {
 
   Future<void> _run(Future<void> Function() action) async {
     setState(() {
-      _error = null;
       _confirmed = false;
     });
     try {
@@ -41,12 +39,10 @@ class _LocationGateState extends ConsumerState<LocationGate> {
           if (mounted) onCompleted();
         });
       }
-    } catch (error) {
-      if (mounted) {
-        setState(
-          () => _error = error.toString().replaceFirst('Exception: ', ''),
-        );
-      }
+    } catch (_) {
+      // The controller stores the user-facing data error in AppState so the
+      // screen stays focused on rendering rather than fetching data.
+      if (mounted) setState(() {});
     }
   }
 
@@ -54,6 +50,9 @@ class _LocationGateState extends ConsumerState<LocationGate> {
   Widget build(BuildContext context) {
     final loading = ref.watch(
       appControllerProvider.select((state) => state.loadingStores),
+    );
+    final error = ref.watch(
+      appControllerProvider.select((state) => state.storeError),
     );
     final controller = ref.read(appControllerProvider.notifier);
     return Center(
@@ -155,11 +154,11 @@ class _LocationGateState extends ConsumerState<LocationGate> {
                     padding: EdgeInsets.only(top: 15),
                     child: LinearProgressIndicator(),
                   ),
-                if (_error != null)
+                if (error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: Text(
-                      _error!,
+                      error,
                       style: const TextStyle(color: AppColors.danger),
                     ),
                   ),

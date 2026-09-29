@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../data/repositories/app_data_repository.dart';
 import '../data/seed_data.dart';
 import '../domain/models/budget_item.dart';
 import '../domain/models/dietary_preferences.dart';
@@ -11,11 +12,9 @@ import '../domain/models/planned_recipe.dart';
 import '../domain/models/recipe.dart';
 import '../domain/services/ingredient_scaler.dart';
 import '../domain/models/user_session.dart';
+import '../services/firebase_account_repository.dart';
+import '../services/firebase_auth_service.dart';
 import '../services/local_storage_service.dart';
-import '../services/location_service.dart';
-import '../services/recipe_service.dart';
-import '../services/store_service.dart';
-import '../services/tax_service.dart';
 import 'app_state.dart';
 
 String _normalizeSearchText(String value) => value
@@ -55,10 +54,9 @@ final appControllerProvider = StateNotifierProvider<AppController, AppState>((
 ) {
   final controller = AppController(
     storage: ref.watch(localStorageProvider),
-    locationService: LocationService(),
-    storeService: StoreService(),
-    taxService: TaxService(),
-    recipeService: RecipeService(),
+    dataRepository: ref.watch(appDataRepositoryProvider),
+    firebaseAuth: ref.watch(firebaseAuthServiceProvider),
+    firebaseAccounts: ref.watch(firebaseAccountRepositoryProvider),
   );
   controller.initialize();
   return controller;
@@ -183,68 +181,124 @@ List<IngredientSwap> glutenFreeSwaps(Recipe recipe) {
 class AppController extends StateNotifier<AppState> {
   AppController({
     required this._storage,
-    required this._locationService,
-    required this._storeService,
-    required this._taxService,
-    required this._recipeService,
+    required this._dataRepository,
+    required this._firebaseAuth,
+    required this._firebaseAccounts,
   }) : super(const AppState());
 
   final LocalStorageService _storage;
-  final LocationService _locationService;
-  final StoreService _storeService;
-  final TaxService _taxService;
-  final RecipeService _recipeService;
+  final AppDataRepository _dataRepository;
+  final FirebaseAuthService _firebaseAuth;
+  final FirebaseAccountRepository _firebaseAccounts;
+  String? _firebaseUid;
   int _searchGeneration = 0;
 
   Future<void> initialize() async {
+    try {
+      final identity = await _firebaseAuth.currentIdentity();
+      if (identity != null) {
+        await _loadAccount(
+          UserSession(
+            username: identity.username,
+            role: identity.isAdmin ? UserRole.admin : UserRole.member,
+          ),
+          firebaseUid: identity.uid,
+        );
+        return;
+      }
+    } catch (_) {
+      // A stale Firebase session should not prevent the local login screen
+      // from opening. The next explicit sign-in will show a useful error.
+    }
     state = state.copyWith(initialized: true);
   }
 
-  Future<void> signIn(String username, String password) async {
-    final cleanName = username.trim();
-    if (cleanName.isEmpty || password.isEmpty) {
-      throw Exception('Enter a username and password.');
+  Future<void> signIn(String email, String password) async {
+    final cleanEmail = email.trim();
+    if (cleanEmail.isEmpty || password.isEmpty) {
+      throw Exception('Enter an email and password.');
     }
-    final normalizedName = cleanName.toLowerCase();
-    if (normalizedName == 'admin') {
-      if (password != 'admin123') {
-        throw Exception('Incorrect admin password.');
-      }
-    } else {
-      if (!_storage.accountExists(cleanName)) {
-        throw Exception('Account not found. Create an account first.');
-      }
-      if (!_storage.verifyPassword(cleanName, password)) {
-        throw Exception('Incorrect username or password.');
-      }
-    }
-    final role = normalizedName == 'admin' ? UserRole.admin : UserRole.member;
-    _loadAccount(UserSession(username: cleanName, role: role));
-  }
-
-  Future<void> createAccount(String username, String password) async {
-    final cleanName = username.trim();
-    final normalizedName = cleanName.toLowerCase();
-    if (cleanName.length < 3 || password.length < 8) {
-      throw Exception(
-        'Use at least 3 username characters and an 8-character password.',
+    if (_firebaseAuth.isAvailable) {
+      final identity = await _firebaseAuth.signIn(
+        email: cleanEmail,
+        password: password,
       );
+      await _loadAccount(
+        UserSession(
+          username: identity.username,
+          role: identity.isAdmin ? UserRole.admin : UserRole.member,
+        ),
+        firebaseUid: identity.uid,
+      );
+      await _persist();
+      return;
     }
-    if (normalizedName == 'admin' || normalizedName == 'guest') {
-      throw Exception('That username is reserved. Choose another one.');
+
+    // Keep local sign-in available for platforms that have not received a
+    // native Firebase configuration yet (for example web/iOS in this build).
+    final cleanName = cleanEmail;
+    if (!_storage.accountExists(cleanName)) {
+      throw Exception('Account not found. Create an account first.');
     }
-    final created = await _storage.registerAccount(cleanName, password);
-    if (!created) {
-      throw Exception('That username is already in use. Try signing in.');
+    if (!_storage.verifyPassword(cleanName, password)) {
+      throw Exception('Incorrect email or password.');
     }
-    _loadAccount(UserSession(username: cleanName, role: UserRole.member));
+    await _loadAccount(UserSession(username: cleanName, role: UserRole.member));
   }
 
-  void continueAsGuest() =>
-      _loadAccount(const UserSession(username: 'Guest', role: UserRole.guest));
+  Future<void> createAccount(String email, String password) async {
+    final cleanEmail = email.trim();
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(cleanEmail)) {
+      throw Exception('Enter a valid email address.');
+    }
+    if (password.length < 8) {
+      throw Exception('Use at least an 8-character password.');
+    }
+    if (_firebaseAuth.isAvailable) {
+      final identity = await _firebaseAuth.createAccount(
+        email: cleanEmail,
+        password: password,
+      );
+      await _loadAccount(
+        UserSession(
+          username: identity.username,
+          role: identity.isAdmin ? UserRole.admin : UserRole.member,
+        ),
+        firebaseUid: identity.uid,
+      );
+      await _persist();
+      return;
+    }
 
-  void _loadAccount(UserSession session) {
-    final stored = _storage.read(session.username);
+    final created = await _storage.registerAccount(cleanEmail, password);
+    if (!created) {
+      throw Exception('That email is already in use. Try signing in.');
+    }
+    await _loadAccount(
+      UserSession(username: cleanEmail, role: UserRole.member),
+    );
+  }
+
+  void continueAsGuest() {
+    _firebaseUid = null;
+    _loadAccount(const UserSession(username: 'Guest', role: UserRole.guest));
+  }
+
+  Future<void> _loadAccount(UserSession session, {String? firebaseUid}) async {
+    _firebaseUid = firebaseUid;
+    StoredAccountState stored;
+    if (firebaseUid == null) {
+      stored = _storage.read(session.username);
+    } else {
+      try {
+        stored = await _firebaseAccounts.read(firebaseUid);
+      } catch (_) {
+        // Authentication should still work if Firestore has not been created
+        // yet or is temporarily unavailable; local storage is the offline
+        // cache for that case.
+        stored = _storage.read(session.username);
+      }
+    }
     state = AppState(
       initialized: true,
       session: session,
@@ -257,19 +311,39 @@ class AppController extends StateNotifier<AppState> {
     );
   }
 
-  void signOut() => state = const AppState(initialized: true);
+  void signOut() {
+    _firebaseUid = null;
+    _firebaseAuth.signOut();
+    state = const AppState(initialized: true);
+  }
 
   Future<void> _persist() async {
     final session = state.session;
     if (session == null || session.isGuest) return;
-    await _storage.write(
-      username: session.username,
+    final account = StoredAccountState(
       preferences: state.preferences,
       savedRecipeIds: state.savedRecipeIds,
       budgetItems: state.budgetItems,
       weeklyBudget: state.weeklyBudget,
       plannedRecipes: state.plannedRecipes,
       zipCode: state.zipCode,
+    );
+    if (_firebaseUid != null && _firebaseAccounts.isAvailable) {
+      try {
+        await _firebaseAccounts.write(uid: _firebaseUid!, account: account);
+        return;
+      } catch (_) {
+        // Keep local caching as a resilient offline fallback.
+      }
+    }
+    await _storage.write(
+      username: session.username,
+      preferences: account.preferences,
+      savedRecipeIds: account.savedRecipeIds,
+      budgetItems: account.budgetItems,
+      weeklyBudget: account.weeklyBudget,
+      plannedRecipes: account.plannedRecipes,
+      zipCode: account.zipCode,
     );
   }
 
@@ -380,7 +454,7 @@ class AppController extends StateNotifier<AppState> {
       activeSearchQuery: cleanQuery,
     );
     try {
-      final found = await _recipeService.search(cleanQuery);
+      final found = await _dataRepository.searchRecipes(cleanQuery);
       if (generation != _searchGeneration) return;
       state = state.copyWith(
         recipes: [...seedRecipes, ...found],
@@ -395,11 +469,15 @@ class AppController extends StateNotifier<AppState> {
 
   Future<void> locateByZip(String zip) async {
     if (!RegExp(r'^\d{5}$').hasMatch(zip)) {
-      throw Exception('Enter a valid 5-digit ZIP code.');
+      state = state.copyWith(
+        loadingStores: false,
+        storeError: 'Enter a valid 5-digit ZIP code.',
+      );
+      throw const DataLayerException('Enter a valid 5-digit ZIP code.');
     }
     state = state.copyWith(loadingStores: true, clearStoreError: true);
     try {
-      final result = await _storeService.searchByZip(zip);
+      final result = await _dataRepository.searchStoresByZip(zip);
       await _applyStores(
         center: result.center,
         stores: result.stores,
@@ -414,9 +492,8 @@ class AppController extends StateNotifier<AppState> {
   Future<void> useCurrentLocation() async {
     state = state.copyWith(loadingStores: true, clearStoreError: true);
     try {
-      final center = await _locationService.currentLocation();
-      final stores = await _storeService.searchNearby(center);
-      await _applyStores(center: center, stores: stores);
+      final result = await _dataRepository.searchStoresAtCurrentLocation();
+      await _applyStores(center: result.center, stores: result.stores);
     } catch (error) {
       state = state.copyWith(loadingStores: false, storeError: '$error');
       rethrow;
@@ -450,8 +527,15 @@ class AppController extends StateNotifier<AppState> {
   Future<void> _updateTaxForSelectedStore() async {
     final store = state.selectedStore;
     if (store == null) return;
-    final estimate = await _taxService.estimateForStore(store);
-    state = state.copyWith(taxRate: estimate.rate, taxIsManual: false);
+    state = state.copyWith(loadingTax: true, clearTaxError: true);
+    final estimate = await _dataRepository.estimateTax(store);
+    state = state.copyWith(
+      loadingTax: false,
+      taxRate: estimate.rate,
+      taxIsManual: false,
+      taxError: estimate.rate == 0 ? estimate.label : null,
+      clearTaxError: estimate.rate != 0,
+    );
   }
 
   void setManualTax(double value) => state = state.copyWith(

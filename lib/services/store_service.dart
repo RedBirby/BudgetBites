@@ -19,6 +19,24 @@ class StoreSearchResult {
   final String? zipCode;
 }
 
+/// Normalizes optional website values returned by map providers. Some stores
+/// publish an empty string or a non-web value in their tags; treating those as
+/// a Uri causes Android's URL launcher to receive an empty intent.
+Uri? _parseWebsite(Object? raw) {
+  if (raw is! String) return null;
+  final value = raw.trim();
+  if (value.isEmpty) return null;
+  final candidate = Uri.tryParse(
+    value.contains('://') ? value : 'https://$value',
+  );
+  if (candidate == null ||
+      (candidate.scheme != 'http' && candidate.scheme != 'https') ||
+      candidate.host.isEmpty) {
+    return null;
+  }
+  return candidate;
+}
+
 class StoreService {
   StoreService({http.Client? client}) : _client = client ?? http.Client();
   final http.Client _client;
@@ -81,7 +99,9 @@ class StoreService {
         'radius': '8000',
       },
     );
-    final response = await _client.get(uri);
+    final response = await _client
+        .get(uri)
+        .timeout(const Duration(seconds: 12));
     if (response.statusCode != 200) {
       throw Exception('Store service unavailable.');
     }
@@ -98,7 +118,7 @@ class StoreService {
         address: item['address'] as String? ?? 'Address available on map',
         location: location,
         distanceMiles: _distance.as(LengthUnit.Mile, center, location),
-        website: Uri.tryParse(item['website'] as String? ?? ''),
+        website: _parseWebsite(item['website']),
       );
     }).toList();
   }
@@ -246,7 +266,7 @@ relation["shop"~"supermarket|grocery"](around:8000,${center.latitude},${center.l
             address: address.isEmpty ? 'Address available on map' : address,
             location: location,
             distanceMiles: _distance.as(LengthUnit.Mile, center, location),
-            website: Uri.tryParse(properties['website'] as String? ?? ''),
+            website: _parseWebsite(properties['website']),
           ),
         );
       }
@@ -317,7 +337,7 @@ relation["shop"~"supermarket|grocery"](around:8000,${center.latitude},${center.l
             address: displayName,
             location: location,
             distanceMiles: _distance.as(LengthUnit.Mile, center, location),
-            website: Uri.tryParse(extraTags['website'] as String? ?? ''),
+            website: _parseWebsite(extraTags['website']),
           ),
         );
       }
@@ -376,7 +396,7 @@ relation["shop"~"supermarket|grocery"](around:8000,${center.latitude},${center.l
           address: address.isEmpty ? 'Address available on map' : address,
           location: location,
           distanceMiles: _distance.as(LengthUnit.Mile, center, location),
-          website: Uri.tryParse(tags['website'] as String? ?? ''),
+          website: _parseWebsite(tags['website']),
         ),
       );
     }

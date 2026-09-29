@@ -16,7 +16,7 @@ class CreateAccountScreen extends ConsumerStatefulWidget {
 
 class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _username = TextEditingController();
+  final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirmation = TextEditingController();
   bool _obscure = true;
@@ -25,7 +25,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
   @override
   void dispose() {
-    _username.dispose();
+    _email.dispose();
     _password.dispose();
     _confirmation.dispose();
     super.dispose();
@@ -40,7 +40,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
     try {
       await ref
           .read(appControllerProvider.notifier)
-          .createAccount(_username.text, _password.text);
+          .createAccount(_email.text, _password.text);
     } catch (error) {
       if (mounted) {
         setState(
@@ -74,19 +74,23 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Save your preferences, recipes, plans, and budget books on this device.',
+            'Save your preferences, recipes, plans, and budget books across your devices.',
             style: TextStyle(color: AppColors.muted),
           ),
           const SizedBox(height: 26),
           TextFormField(
-            controller: _username,
+            controller: _email,
             textInputAction: TextInputAction.next,
+            keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(
-              labelText: 'Choose a username',
-              prefixIcon: Icon(Icons.person_add_alt_1_outlined),
+              labelText: 'Email address',
+              prefixIcon: Icon(Icons.email_outlined),
             ),
-            validator: (value) => (value ?? '').trim().length < 3
-                ? 'Enter at least 3 characters.'
+            validator: (value) =>
+                !RegExp(
+                  r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                ).hasMatch((value ?? '').trim())
+                ? 'Enter a valid email address.'
                 : null,
           ),
           const SizedBox(height: 14),

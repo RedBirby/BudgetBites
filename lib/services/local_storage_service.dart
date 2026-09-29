@@ -31,6 +31,51 @@ class StoredAccountState {
   final double weeklyBudget;
   final List<PlannedRecipe> plannedRecipes;
   final String? zipCode;
+
+  Map<String, Object?> toJson() => {
+    'preferences': preferences.toJson(),
+    'savedRecipeIds': savedRecipeIds.toList(),
+    'budgetItems': budgetItems.map((item) => item.toJson()).toList(),
+    'weeklyBudget': weeklyBudget,
+    'plannedRecipes': plannedRecipes.map((item) => item.toJson()).toList(),
+    'zipCode': zipCode,
+  };
+
+  factory StoredAccountState.fromJson(Map<String, dynamic> json) {
+    return StoredAccountState(
+      preferences: DietaryPreferences.fromJson(
+        Map<String, dynamic>.from(json['preferences'] as Map? ?? const {}),
+      ),
+      savedRecipeIds: Set<String>.from(
+        json['savedRecipeIds'] as List? ?? const [],
+      ),
+      budgetItems: (json['budgetItems'] as List? ?? const [])
+          .map(
+            (item) =>
+                BudgetItem.fromJson(Map<String, dynamic>.from(item as Map)),
+          )
+          .toList(),
+      weeklyBudget: (json['weeklyBudget'] as num?)?.toDouble() ?? 100,
+      plannedRecipes: _readPlannedRecipes(json),
+      zipCode: json['zipCode'] as String?,
+    );
+  }
+
+  static List<PlannedRecipe> _readPlannedRecipes(Map<String, dynamic> json) {
+    final raw = json['plannedRecipes'] as List?;
+    if (raw != null) {
+      return raw
+          .map(
+            (item) =>
+                PlannedRecipe.fromJson(Map<String, dynamic>.from(item as Map)),
+          )
+          .toList();
+    }
+    final legacyId = json['planRecipeId'] as String?;
+    return legacyId == null
+        ? const []
+        : [PlannedRecipe(recipeId: legacyId, servings: 4)];
+  }
 }
 
 class LocalStorageService {
@@ -93,23 +138,8 @@ class LocalStorageService {
       );
     }
     try {
-      final json = jsonDecode(raw) as Map<String, dynamic>;
-      return StoredAccountState(
-        preferences: DietaryPreferences.fromJson(
-          Map<String, dynamic>.from(json['preferences'] as Map? ?? const {}),
-        ),
-        savedRecipeIds: Set<String>.from(
-          json['savedRecipeIds'] as List? ?? const [],
-        ),
-        budgetItems: (json['budgetItems'] as List? ?? const [])
-            .map(
-              (item) =>
-                  BudgetItem.fromJson(Map<String, dynamic>.from(item as Map)),
-            )
-            .toList(),
-        weeklyBudget: (json['weeklyBudget'] as num?)?.toDouble() ?? 100,
-        plannedRecipes: _readPlannedRecipes(json),
-        zipCode: json['zipCode'] as String?,
+      return StoredAccountState.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (_) {
       return const StoredAccountState(
@@ -145,20 +175,4 @@ class LocalStorageService {
       'zipCode': zipCode,
     }),
   );
-
-  static List<PlannedRecipe> _readPlannedRecipes(Map<String, dynamic> json) {
-    final raw = json['plannedRecipes'] as List?;
-    if (raw != null) {
-      return raw
-          .map(
-            (item) =>
-                PlannedRecipe.fromJson(Map<String, dynamic>.from(item as Map)),
-          )
-          .toList();
-    }
-    final legacyId = json['planRecipeId'] as String?;
-    return legacyId == null
-        ? const []
-        : [PlannedRecipe(recipeId: legacyId, servings: 4)];
-  }
 }

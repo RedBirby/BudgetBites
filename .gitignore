@@ -30,6 +30,9 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
+.tools/
+/ios/**/xcshareddata/swiftpm/
+/macos/**/xcshareddata/swiftpm/
 /build/
 /coverage/
 

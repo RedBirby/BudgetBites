@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -28,7 +29,9 @@ class TaxService {
       final uri = Uri.parse(AppConfig.taxProxyUrl).replace(
         queryParameters: {'zip': store.zipCode!, 'address': store.address},
       );
-      final response = await _client.get(uri);
+      final response = await _client
+          .get(uri)
+          .timeout(const Duration(seconds: 12));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return TaxEstimate(

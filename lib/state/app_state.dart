@@ -29,6 +29,8 @@ class AppState {
     this.weeklyBudget = 100,
     this.taxRate = 0,
     this.taxIsManual = false,
+    this.loadingTax = false,
+    this.taxError,
   });
 
   final bool initialized;
@@ -50,6 +52,8 @@ class AppState {
   final double weeklyBudget;
   final double taxRate;
   final bool taxIsManual;
+  final bool loadingTax;
+  final String? taxError;
 
   List<Recipe> get planRecipes => [
     for (final planned in plannedRecipes)
@@ -105,6 +109,9 @@ class AppState {
     double? weeklyBudget,
     double? taxRate,
     bool? taxIsManual,
+    bool? loadingTax,
+    String? taxError,
+    bool clearTaxError = false,
   }) => AppState(
     initialized: initialized ?? this.initialized,
     session: clearSession ? null : session ?? this.session,
@@ -127,5 +134,7 @@ class AppState {
     weeklyBudget: weeklyBudget ?? this.weeklyBudget,
     taxRate: taxRate ?? this.taxRate,
     taxIsManual: taxIsManual ?? this.taxIsManual,
+    loadingTax: loadingTax ?? this.loadingTax,
+    taxError: clearTaxError ? null : taxError ?? this.taxError,
   );
 }

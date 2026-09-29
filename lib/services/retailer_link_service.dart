@@ -1,6 +1,12 @@
 import '../domain/models/grocery_store.dart';
 
 class RetailerLinkService {
+  bool isUsableWebUri(Uri? uri) {
+    return uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty;
+  }
+
   /// Returns true when the retailer has a known product-search experience.
   ///
   /// For smaller stores, we can still open their public website, but we do
@@ -21,14 +27,14 @@ class RetailerLinkService {
     if (supportsInventorySearch(store)) {
       return 'Search $ingredient online';
     }
-    if (store.website != null) {
+    if (isUsableWebUri(store.website)) {
       return 'Open store website';
     }
     return 'Website unavailable';
   }
 
   String? availabilityNote(GroceryStore store) {
-    if (store.website == null) {
+    if (!isUsableWebUri(store.website)) {
       return 'No store website or online inventory is listed.';
     }
     if (!supportsInventorySearch(store)) {
@@ -67,6 +73,6 @@ class RetailerLinkService {
     if (RegExp('kroger|ralphs|food 4 less').hasMatch(name)) {
       return Uri.parse('https://www.kroger.com/search?query=$query');
     }
-    return store.website;
+    return isUsableWebUri(store.website) ? store.website : null;
   }
 }

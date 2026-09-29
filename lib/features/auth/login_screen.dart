@@ -15,7 +15,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _username = TextEditingController();
+  final _email = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
   bool _submitting = false;
@@ -23,7 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
-    _username.dispose();
+    _email.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -37,7 +37,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref
           .read(appControllerProvider.notifier)
-          .signIn(_username.text, _password.text);
+          .signIn(_email.text, _password.text);
     } catch (error) {
       if (mounted) {
         setState(
@@ -76,14 +76,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const SizedBox(height: 26),
           TextFormField(
-            controller: _username,
+            controller: _email,
             textInputAction: TextInputAction.next,
+            keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(
-              labelText: 'Username',
-              prefixIcon: Icon(Icons.person_outline),
+              labelText: 'Email address',
+              prefixIcon: Icon(Icons.email_outlined),
             ),
-            validator: (value) => (value ?? '').trim().length < 3
-                ? 'Enter at least 3 characters.'
+            validator: (value) =>
+                !RegExp(
+                  r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                ).hasMatch((value ?? '').trim())
+                ? 'Enter a valid email address.'
                 : null,
           ),
           const SizedBox(height: 14),
@@ -126,7 +130,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               minimumSize: const Size.fromHeight(52),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           OutlinedButton(
             onPressed: () => context.go('/create-account'),
             child: const Text('Create an account'),

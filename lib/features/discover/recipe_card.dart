@@ -49,6 +49,7 @@ class RecipeCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(appControllerProvider);
     final controller = ref.read(appControllerProvider.notifier);
+    final isGuest = state.session?.isGuest ?? false;
     final saved = state.savedRecipeIds.contains(recipe.id);
     final inPlan = state.plannedRecipes.any(
       (planned) => planned.recipeId == recipe.id,
@@ -93,8 +94,14 @@ class RecipeCard extends ConsumerWidget {
                 right: 12,
                 top: 12,
                 child: IconButton.filledTonal(
-                  tooltip: saved ? 'Remove from saved' : 'Save recipe',
-                  onPressed: () => controller.toggleSaved(recipe.id),
+                  tooltip: isGuest
+                      ? 'Create an account to save recipes'
+                      : saved
+                      ? 'Remove from saved'
+                      : 'Save recipe',
+                  onPressed: isGuest
+                      ? () => _showGuestSaveHint(context)
+                      : () => controller.toggleSaved(recipe.id),
                   icon: Icon(saved ? Icons.bookmark : Icons.bookmark_border),
                 ),
               ),
@@ -212,8 +219,14 @@ class RecipeCard extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => controller.toggleSaved(recipe.id),
-                        child: Text(saved ? 'Saved' : 'Save'),
+                        onPressed: isGuest
+                            ? () => _showGuestSaveHint(context)
+                            : () => controller.toggleSaved(recipe.id),
+                        child: Text(
+                          isGuest
+                              ? 'Sign in to save'
+                              : (saved ? 'Saved' : 'Save'),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -240,5 +253,15 @@ class RecipeCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _showGuestSaveHint(BuildContext context) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Create an account to save recipes between sessions.'),
+        ),
+      );
   }
 }

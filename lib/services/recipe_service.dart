@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -12,7 +13,9 @@ class RecipeService {
     final uri = Uri.https('www.themealdb.com', '/api/json/v1/1/search.php', {
       's': query,
     });
-    final response = await _client.get(uri);
+    final response = await _client
+        .get(uri)
+        .timeout(const Duration(seconds: 12));
     if (response.statusCode != 200) {
       throw Exception('Recipe search is unavailable.');
     }

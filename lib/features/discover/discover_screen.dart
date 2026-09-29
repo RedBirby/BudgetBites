@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/common_widgets.dart';
 import '../../state/app_controller.dart';
 import 'recipe_card.dart';
-
-const _heroImageUrl =
-    'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=85';
+import 'welcome_panel.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
+
   @override
   ConsumerState<DiscoverScreen> createState() => _DiscoverScreenState();
 }
 
 class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   final _search = TextEditingController();
+
   @override
   void dispose() {
     _search.dispose();
@@ -36,6 +35,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     );
     final state = ref.watch(appControllerProvider);
     final recipes = ref.watch(visibleRecipesProvider);
+    final controller = ref.read(appControllerProvider.notifier);
     return PageContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,14 +55,11 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               leading: const Icon(Icons.search),
               trailing: [
                 FilledButton(
-                  onPressed: () => ref
-                      .read(appControllerProvider.notifier)
-                      .searchRecipes(_search.text),
+                  onPressed: () => controller.searchRecipes(_search.text),
                   child: const Text('Search'),
                 ),
               ],
-              onSubmitted: (value) =>
-                  ref.read(appControllerProvider.notifier).searchRecipes(value),
+              onSubmitted: controller.searchRecipes,
             ),
           ),
           if (state.activeSearchQuery.isEmpty) ...[
@@ -71,10 +68,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               text:
                   'Tip: choose a recipe, tap Add to plan, then set servings and pick a store.',
             ),
-          ],
-          if (state.activeSearchQuery.isEmpty) ...[
             const SizedBox(height: 18),
-            const _WelcomePanel(),
+            const WelcomePanel(),
           ],
           if (!state.preferences.isEmpty) ...[
             const SizedBox(height: 13),
@@ -142,9 +137,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       if (state.activeSearchQuery.isNotEmpty) ...[
                         const SizedBox(height: 14),
                         OutlinedButton.icon(
-                          onPressed: () => ref
-                              .read(appControllerProvider.notifier)
-                              .clearRecipeSearch(),
+                          onPressed: controller.clearRecipeSearch,
                           icon: const Icon(Icons.close),
                           label: const Text('Clear search'),
                         ),
@@ -181,153 +174,4 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       ),
     );
   }
-}
-
-class _WelcomePanel extends StatelessWidget {
-  const _WelcomePanel();
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      color: AppColors.mint,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 640;
-          final copy = Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'A little inspiration',
-                  style: TextStyle(
-                    color: AppColors.green,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  'Good food, lighter budget.',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const SizedBox(height: 7),
-                const Text(
-                  'Pick a recipe, check nearby prices, and make a grocery plan that fits your life.',
-                  style: TextStyle(color: AppColors.muted, height: 1.4),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 7,
-                  runSpacing: 7,
-                  children: const [
-                    PreferenceChip(
-                      'Budget-friendly',
-                      icon: Icons.savings_outlined,
-                    ),
-                    PreferenceChip(
-                      'Wellness-minded',
-                      icon: Icons.favorite_outline,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: () => context.push('/preferences'),
-                  icon: const Icon(Icons.tune_rounded),
-                  label: const Text('Set preferences'),
-                ),
-              ],
-            ),
-          );
-          const hero = _HeroImage(
-            imageUrl: _heroImageUrl,
-            title: 'Fresh ingredients, smarter shopping',
-            subtitle: 'Plan meals that fit your budget.',
-          );
-          return Padding(
-            padding: EdgeInsets.all(compact ? 14 : 18),
-            child: compact
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [copy, const SizedBox(height: 6), hero],
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(child: copy),
-                      const SizedBox(width: 18),
-                      SizedBox(width: 330, child: hero),
-                    ],
-                  ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _HeroImage extends StatelessWidget {
-  const _HeroImage({
-    required this.imageUrl,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final String imageUrl;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(20),
-    child: AspectRatio(
-      aspectRatio: 1.12,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          RecipeImage(source: imageUrl),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Color(0xCC152019)],
-              ),
-            ),
-          ),
-          Positioned(
-            left: 14,
-            right: 14,
-            bottom: 14,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 17,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }
